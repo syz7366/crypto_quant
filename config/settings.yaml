@@ -1,0 +1,183 @@
+# 系统配置文件
+
+# 应用配置
+app:
+  name: "Quant Crypto Data Layer"
+  version: "1.0.0"
+  environment: "development"  # development, staging, production
+  debug: true
+
+# 服务配置
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: true  # 开发模式下自动重载
+
+# 数据库配置
+database:
+  timescaledb:
+    host: "localhost"
+    port: 5432
+    database: "quant_crypto"
+    user: "postgres"
+    password: ""
+    pool_size: 20
+    max_overflow: 10
+    echo: false  # SQL日志
+
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: ""
+    max_connections: 50
+    decode_responses: true
+
+# 数据采集配置
+collectors:
+  enabled: true
+  default_exchanges:
+    - binance
+  
+  # 数据采集间隔（秒）
+  intervals:
+    tick: 0  # 实时
+    orderbook: 1
+    ticker: 5
+    kline_1m: 60
+    kline_5m: 300
+
+  # 缓冲区大小
+  buffer_size: 1000
+  
+  # 批量写入大小
+  batch_size: 100
+  
+  # 写入间隔（秒）
+  flush_interval: 5
+
+# 数据清洗配置
+cleaning:
+  enabled: true
+  
+  # 价格跳变阈值（百分比）
+  price_jump_threshold: 0.5
+  
+  # 成交量异常阈值（倍数）
+  volume_anomaly_threshold: 10.0
+  
+  # 时间戳容差（毫秒）
+  timestamp_tolerance: 1000
+  
+  # 缺失数据填补方法
+  fill_method: "forward"  # forward, backward, interpolate
+
+# 缓存配置
+cache:
+  enabled: true
+  
+  # 缓存过期时间（秒）
+  ttl:
+    kline: 300  # 5分钟
+    orderbook: 10  # 10秒
+    ticker: 30  # 30秒
+  
+  # 缓存键前缀
+  key_prefix: "qc:"
+
+# 监控配置
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    port: 9090
+  
+  # 指标收集间隔（秒）
+  metrics_interval: 10
+  
+  # 告警配置
+  alerts:
+    data_delay_threshold: 10  # 秒
+    error_rate_threshold: 0.05  # 5%
+    cpu_threshold: 0.8  # 80%
+    memory_threshold: 0.8  # 80%
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "json"  # text, json
+  
+  # 日志文件
+  file:
+    enabled: true
+    path: "logs/app.log"
+    max_size: "100MB"
+    backup_count: 10
+    rotation: "midnight"
+  
+  # 控制台输出
+  console:
+    enabled: true
+    colorize: true
+
+# 性能配置
+performance:
+  # 线程池大小
+  thread_pool_size: 8
+  
+  # 协程池大小
+  coroutine_pool_size: 1000
+  
+  # 最大并发请求数
+  max_concurrent_requests: 100
+
+# 安全配置
+security:
+  # JWT配置
+  jwt:
+    secret_key: ""  # 从环境变量读取
+    algorithm: "HS256"
+    expire_minutes: 60
+  
+  # API限流
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst: 10
+  
+  # CORS配置
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://localhost:8080"
+    methods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+    headers:
+      - "*"
+
+# 数据存储策略
+storage:
+  # 数据保留期限（天）
+  retention:
+    tick: 7
+    kline_1m: 30
+    kline_5m: 90
+    kline_15m: 180
+    kline_1h: 365
+    kline_1d: -1  # -1表示永久保留
+  
+  # 数据压缩
+  compression:
+    enabled: true
+    algorithm: "zstd"  # gzip, zstd, lz4
+  
+  # 分区策略
+  partitioning:
+    enabled: true
+    interval: "1 day"  # 1 day, 1 week, 1 month
+

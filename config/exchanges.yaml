@@ -1,0 +1,76 @@
+# 交易所配置文件
+
+exchanges:
+  binance:
+    name: Binance
+    enabled: true
+    rest_api: https://api.binance.com
+    websocket: wss://stream.binance.com:9443/ws
+    api_key: ""  # 从环境变量读取
+    api_secret: ""  # 从环境变量读取
+    rate_limit:
+      requests_per_minute: 1200
+      orders_per_second: 10
+    symbols:
+      - BTC/USDT
+      - ETH/USDT
+      - BNB/USDT
+    timeframes:
+      - 1m
+      - 5m
+      - 15m
+      - 1h
+      - 4h
+      - 1d
+
+  okx:
+    name: OKX
+    enabled: false
+    rest_api: https://www.okx.com
+    websocket: wss://ws.okx.com:8443/ws/v5/public
+    api_key: ""
+    api_secret: ""
+    passphrase: ""
+    rate_limit:
+      requests_per_minute: 600
+      orders_per_second: 5
+    symbols:
+      - BTC/USDT
+      - ETH/USDT
+    timeframes:
+      - 1m
+      - 5m
+      - 15m
+      - 1h
+      - 4h
+      - 1d
+
+  bybit:
+    name: Bybit
+    enabled: false
+    rest_api: https://api.bybit.com
+    websocket: wss://stream.bybit.com/v5/public
+    api_key: ""
+    api_secret: ""
+    rate_limit:
+      requests_per_minute: 600
+      orders_per_second: 10
+    symbols:
+      - BTC/USDT
+      - ETH/USDT
+    timeframes:
+      - 1m
+      - 5m
+      - 15m
+      - 1h
+      - 4h
+      - 1d
+
+# 默认配置
+default:
+  reconnect_attempts: 5
+  reconnect_delay: 5  # 秒
+  heartbeat_interval: 30  # 秒
+  request_timeout: 10  # 秒
+  max_retries: 3
+
