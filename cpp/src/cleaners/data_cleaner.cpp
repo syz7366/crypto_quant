@@ -24,6 +24,7 @@ DataQuality DataCleaner::clean_ohlcv(OHLCV& data) const {
         }
     }
     return DataQuality::GOOD;
+
 }
 
 std::vector<OHLCV> DataCleaner::clean_ohlcv_batch(const std::vector<OHLCV>& data_list) const {

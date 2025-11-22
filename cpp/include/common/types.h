@@ -176,5 +176,60 @@ inline int64_t timeframe_to_milliseconds(Timeframe tf) {
     }
 }
 
+enum class ErrorCode{
+    SUCCESS = 0,
+    NETWORK_ERROR,          // 网络错误
+    HTTP_ERROR,             // HTTP 状态码错误
+    PARSE_ERROR,            // JSON 解析错误
+    INVALID_PARAMS,         // 参数错误
+    RATE_LIMIT_EXCEEDED,    // 超过限流
+    TIMEOUT,                // 超时
+    UNKNOWN_ERROR           // 未知错误
+}
+
+// 错误信息-字符串显示
+inline std::string error_code_to_string(ErrorCode code){
+    switch (code){
+        case ErrorCode::SUCCESS: return "Success";
+        case ErrorCode::NETWORK_ERROR: return "Network error";
+        case ErrorCode::HTTP_ERROR: return "HTTP error";
+        case ErrorCode::PARSE_ERROR: return "Parse error";
+        case ErrorCode::INVALID_PARAMS: return "Invalid params";
+        case ErrorCode::RATE_LIMIT_EXCEEDED: return "Rate limit exceeded";
+        case ErrorCode::TIMEOUT: return "Timeout";
+        case ErrorCode::UNKNOWN_ERROR: return "Unknown error";
+        default: return "Unknown error";
+    }
+    return "Unknown error and Unknown error code";
+}
+
+template<typename T>
+struct Result{
+    bool success;
+    ErrorCode error_code;
+    std::string error_message;
+    T data;
+
+    Result() : success(false), error_code(ErrorCode::UNKNOWN_ERROR) {}
+    
+    static Result<T> Ok(T data){
+        Result<T> r;
+        r.success = true;
+        r.error_code = ErrorCode::SUCCESS;
+        r.error_message = "";
+        r.data = std::move(data);  // 这里可能会有隐患
+        return r;
+    }
+
+    // 失败时使用
+    static Result<T> Err(ErrorCode code, const std::string& message=""){
+        Result<T> r;
+        r.success = false;
+        r.error_code = code;
+        r.error_message = message.empty()?error_code_to_string(code):message;
+        return r;
+    }
+}
+
 } // namespace quant_crypto
 

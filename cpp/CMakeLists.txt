@@ -1,5 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
 
+# 包含目录
+include_directories(
+    ${CMAKE_SOURCE_DIR}/cpp/include
+    ${CMAKE_SOURCE_DIR}/third_party/pybind11/include
+    ${CMAKE_SOURCE_DIR}/third_party/httplib    
+    ${CMAKE_SOURCE_DIR}/third_party/json       
+)
+find_package(OpenSSL REQUIRED)
+target_link_libraries(quant_crypto_core 
+    PRIVATE 
+    OpenSSL::SSL 
+    OpenSSL::Crypto
+)
+
+
 # 收集源文件
 file(GLOB_RECURSE CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
