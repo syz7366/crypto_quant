@@ -59,7 +59,9 @@ def test_direct_api():
 
 if __name__ == "__main__":
 
-    test_ccxt_api()
+    # 这里是通过ccxt 自己主动去拉取的
+    # test_ccxt_api()
 
     # 测试3: 直接调用原始API
-    # raw_data = test_direct_api()
+    raw_data = test_direct_api()
+    print(raw_data)

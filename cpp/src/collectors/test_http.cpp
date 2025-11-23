@@ -13,7 +13,10 @@ int main() {
     params["interval"] = "1h";
     params["limit"] = "5";
     
-    auto result = client.get("https://api.binance.com/api/v3/klines", params);
+    std::string url = "https://api.binance.com/api/v3/klines";
+    std::cout << "Testing URL: [" << url << "]" << std::endl;
+    std::cout << "URL length: " << url.length() << std::endl;
+    auto result = client.get(url, params);
     
     if (result.success) {
         std::cout << "Success!" << std::endl;

@@ -185,7 +185,7 @@ enum class ErrorCode{
     RATE_LIMIT_EXCEEDED,    // 超过限流
     TIMEOUT,                // 超时
     UNKNOWN_ERROR           // 未知错误
-}
+};
 
 // 错误信息-字符串显示
 inline std::string error_code_to_string(ErrorCode code){
@@ -229,7 +229,7 @@ struct Result{
         r.error_message = message.empty()?error_code_to_string(code):message;
         return r;
     }
-}
+};
 
 } // namespace quant_crypto
 

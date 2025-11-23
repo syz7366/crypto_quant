@@ -1,5 +1,12 @@
 #pragma once
 
+#include <string>
+#include <map>
+#define CPPHTTPLIB_OPENSSL_SUPPORT
+#include <httplib.h>
+#include <json.hpp>
+#include "common/types.h"
+
 namespace quant_crypto{
 namespace collectors{
 
@@ -10,6 +17,7 @@ struct HttpResponse{
 };
 
 class HttpClient{
+public:
     HttpClient();
     ~HttpClient();
 
@@ -65,7 +73,7 @@ private:
 
     // 构建 URL 查询字符串
     std::string build_query_string(const std::map<std::string, std::string>& params);
-}
+};
 
 
 

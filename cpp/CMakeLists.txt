@@ -1,24 +1,21 @@
-cmake_minimum_required(VERSION 3.15)
+# =====================================================
+# cpp模块的CMakeLists.txt
+# 职责：只负责cpp模块的源文件收集和库的构建
+# 依赖：所有外部依赖已由根目录CMakeLists.txt配置
+# =====================================================
 
-# 包含目录
+# 添加第三方库的include目录（httplib和json是header-only库）
 include_directories(
-    ${CMAKE_SOURCE_DIR}/cpp/include
-    ${CMAKE_SOURCE_DIR}/third_party/pybind11/include
     ${CMAKE_SOURCE_DIR}/third_party/httplib    
     ${CMAKE_SOURCE_DIR}/third_party/json       
 )
-find_package(OpenSSL REQUIRED)
-target_link_libraries(quant_crypto_core 
-    PRIVATE 
-    OpenSSL::SSL 
-    OpenSSL::Crypto
-)
-
 
 # 收集源文件
 file(GLOB_RECURSE CORE_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
 )
+# 排除测试文件（它们有自己的 main 函数）
+list(FILTER CORE_SOURCES EXCLUDE REGEX ".*test_.*\\.cpp$")
 
 # 收集头文件
 file(GLOB_RECURSE CORE_HEADERS
@@ -28,23 +25,22 @@ file(GLOB_RECURSE CORE_HEADERS
 
 # 创建核心静态库
 add_library(quant_crypto_core_static STATIC ${CORE_SOURCES})
+
+# 设置该库的include目录（PUBLIC：让链接此库的目标也能看到这些头文件）
 target_include_directories(quant_crypto_core_static PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+# 链接外部依赖（这些依赖由根目录CMakeLists.txt查找和配置）
 target_link_libraries(quant_crypto_core_static
     PUBLIC
-    Threads::Threads
-    OpenSSL::SSL
-    OpenSSL::Crypto
-    ${Boost_LIBRARIES}
+    Threads::Threads        # 线程库
+    OpenSSL::SSL            # OpenSSL库
+    OpenSSL::Crypto         # OpenSSL加密库
+    ${Boost_LIBRARIES}      # Boost库
 )
 
-# 设置编译选项
-target_compile_options(quant_crypto_core_static PRIVATE
-    $<$<CXX_COMPILER_ID:GNU>:-Wall -Wextra -Wpedantic>
-    $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wpedantic>
-    $<$<CXX_COMPILER_ID:MSVC>:/W4>
-)
+# 注意：编译选项（-Wall等）已由根目录CMakeLists.txt全局配置，此处无需重复
 
 # Python绑定模块
 pybind11_add_module(quant_crypto_core ${CMAKE_CURRENT_SOURCE_DIR}/bindings/bindings.cpp)
@@ -56,5 +52,36 @@ target_include_directories(quant_crypto_core PRIVATE
 # 设置Python模块输出路径
 set_target_properties(quant_crypto_core PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/python
+)
+
+# ==============================================
+# 测试可执行文件
+# ==============================================
+
+# 测试1：HTTP客户端测试
+add_executable(test_http 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/collectors/test_http.cpp
+)
+target_link_libraries(test_http 
+    PRIVATE 
+    quant_crypto_core_static
+)
+set_target_properties(test_http PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# 测试2：币安API最小化测试（独立可执行文件，不依赖其他模块）
+add_executable(test_binance_minimal 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/collectors/test_binance_minimal.cpp
+)
+# 只链接必要的库（不需要整个core_static，减少依赖）
+target_link_libraries(test_binance_minimal 
+    PRIVATE 
+    Threads::Threads
+    OpenSSL::SSL
+    OpenSSL::Crypto
+)
+set_target_properties(test_binance_minimal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
