@@ -81,9 +81,12 @@ Result<HttpResponse> HttpClient::get(const std::string& url,const std::map<std::
     // 生产环境建议启用验证：client.set_ca_cert_path("/path/to/cert.pem")
     client.enable_server_certificate_verification(false);
     
-    // 【关键修复2】设置SNI（Server Name Indication）支持
-    // 币安等现代API服务器需要这个
-    // client.set_hostname_addr_map(host, host);
+    // 【关键修复2】设置代理（如果配置了代理）
+    // 对应 Python 的 proxies={"http": "...", "https": "..."}
+    if (!proxy_host_.empty() && proxy_port_ > 0) {
+        client.set_proxy(proxy_host_.c_str(), proxy_port_);
+        std::cout << "[HttpClient] ✓ 使用代理: " << proxy_host_ << ":" << proxy_port_ << std::endl;
+    }
 
     // 4. 设置超时（类似Python的timeout=30）
     client.set_connection_timeout(timeout_ms_ / 1000, (timeout_ms_ % 1000) * 1000);
@@ -100,9 +103,8 @@ Result<HttpResponse> HttpClient::get(const std::string& url,const std::map<std::
     if (headers_.find("Accept") == headers_.end()) {
         headers.insert({"Accept", "*/*"});
     }
-    if (headers_.find("Accept-Encoding") == headers_.end()) {
-        headers.insert({"Accept-Encoding", "gzip, deflate"});
-    }
+    // 注意：不设置 Accept-Encoding，避免gzip压缩导致解压失败
+    // httplib 在某些情况下（特别是通过代理）不能正确处理gzip压缩响应
     if (headers_.find("Connection") == headers_.end()) {
         headers.insert({"Connection", "keep-alive"});
     }
@@ -209,15 +211,38 @@ Result<HttpResponse> HttpClient::post(const std::string& url,const std::string& 
 
     std::cout << "host: " << host << ", path: " << path << std::endl;
     
-    //  创建 httplib 客户端
-    httplib::SSLClient client(host);  //HTTPS 用 SSLClient
+    // 创建 httplib 客户端
+    httplib::SSLClient client(host);
+    
+    // 禁用SSL证书验证（与GET方法保持一致）
+    client.enable_server_certificate_verification(false);
+    
+    // 设置代理（如果配置了代理）
+    if (!proxy_host_.empty() && proxy_port_ > 0) {
+        client.set_proxy(proxy_host_.c_str(), proxy_port_);
+        std::cout << "[HttpClient] ✓ 使用代理: " << proxy_host_ << ":" << proxy_port_ << std::endl;
+    }
 
-    // 4. 设置超时
+    // 设置超时
     client.set_connection_timeout(timeout_ms_ / 1000, (timeout_ms_ % 1000) * 1000);
     client.set_read_timeout(timeout_ms_ / 1000, (timeout_ms_ % 1000) * 1000);
     
-    // 5. 设置自定义头
+    // 5. 设置HTTP头（与GET方法保持一致）
     httplib::Headers headers;
+    
+    // 添加标准HTTP头
+    if (headers_.find("User-Agent") == headers_.end()) {
+        headers.insert({"User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"});
+    }
+    if (headers_.find("Accept") == headers_.end()) {
+        headers.insert({"Accept", "*/*"});
+    }
+    // 不设置 Accept-Encoding（避免gzip压缩问题）
+    if (headers_.find("Connection") == headers_.end()) {
+        headers.insert({"Connection", "keep-alive"});
+    }
+    
+    // 添加用户自定义的头
     for (const auto& h : headers_) {
         headers.insert({h.first, h.second});
     }

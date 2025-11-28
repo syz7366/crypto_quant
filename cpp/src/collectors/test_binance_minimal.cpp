@@ -19,16 +19,12 @@
 
 using json = nlohmann::json;
 
-// ============================================
-// 配置选项（根据你的网络环境调整）
-// ============================================
-
 // 是否使用代理（类似Python的proxies参数）
 constexpr bool USE_PROXY = true;  // 改为 false 可禁用代理
 
 // 代理服务器地址和端口
 constexpr const char* PROXY_HOST = "127.0.0.1";
-constexpr int PROXY_PORT = 7897;
+constexpr int PROXY_PORT = 10090;
 
 /**
  * @brief 测试1：访问币安K线数据（类似Python的test_direct_api）
