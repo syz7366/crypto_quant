@@ -75,7 +75,7 @@ Result<HttpResponse> HttpClient::get(const std::string& url,const std::map<std::
     }
 
     // 3. 创建 httplib 客户端
-    httplib::SSLClient client(host);
+    httplib::SSLClient client(host);  
     
     // 【关键修复1】禁用SSL证书验证（类似Python requests的verify=False）
     // 生产环境建议启用验证：client.set_ca_cert_path("/path/to/cert.pem")
@@ -118,7 +118,7 @@ Result<HttpResponse> HttpClient::get(const std::string& url,const std::map<std::
     std::cout << "[HttpClient] GET " << url << "?" << query << std::endl;
     
     auto res = client.Get(path, headers);
-    
+
     // 7. 检查结果
     if (!res) {
         // 获取详细的错误信息（类似Python的异常信息）
@@ -172,7 +172,7 @@ Result<HttpResponse> HttpClient::get(const std::string& url,const std::map<std::
     HttpResponse response;
     response.status_code = res->status;
     response.body = res->body;
-    
+
     // 保存响应头（类似Python的response.headers）
     for (const auto& header : res->headers) {
         response.headers[header.first] = header.second;

@@ -80,7 +80,7 @@ int main() {
         } else {
             std::cerr << "\n❌ 数据保存失败！" << std::endl;
         }
-
+        
         std::cout << "========================================" << std::endl;
         std::cout << "✅ 测试成功！BinanceCollector 工作正常！" << std::endl;
         std::cout << "========================================" << std::endl;
@@ -170,7 +170,7 @@ int main() {
     //     std::cerr << "错误信息: " << orderbook_result.error_message << std::endl;
     // }
     
-    return 0;    
+    return 0;
 
 }
 
