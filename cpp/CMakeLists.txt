@@ -97,3 +97,15 @@ set_target_properties(test_binance_collector PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+# 测试4：数据清洗测试
+add_executable(test_data_cleaner
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cleaners/test_data_cleaner.cpp
+)
+target_link_libraries(test_data_cleaner
+    PRIVATE
+    quant_crypto_core_static
+)
+set_target_properties(test_data_cleaner PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+

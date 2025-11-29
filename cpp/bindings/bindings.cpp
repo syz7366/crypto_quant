@@ -6,6 +6,10 @@
 #include "collectors/base_collector.h"
 #include "normalizers/data_normalizer.h"
 #include "cleaners/data_cleaner.h"
+#include "collectors/binance_collector.h"
+#include "storage/kline_storage.h"
+#include "config/config_manager.h"
+// #include "common/result.h"
 
 namespace py = pybind11;
 using namespace quant_crypto;
@@ -175,5 +179,59 @@ PYBIND11_MODULE(quant_crypto_core, m) {
         .def_static("fill_missing", &cleaners::DataCleaner::fill_missing,
                    "填补缺失数据",
                    py::arg("data_list"), py::arg("timeframe"), py::arg("method") = "forward");
+
+    py::class_<config::BinanceConfig>(m, "BinanceConfig")
+        .def(py::init<>())
+        .def_readwrite("base_url", &config::BinanceConfig::base_url)
+        .def_readwrite("proxy_host", &config::BinanceConfig::proxy_host)
+        .def_readwrite("proxy_port", &config::BinanceConfig::proxy_port)
+        .def_readwrite("proxy_enabled", &config::BinanceConfig::proxy_enabled)
+        .def_readwrite("timeout_ms", &config::BinanceConfig::timeout_ms)
+        .def_readwrite("data_dir", &config::BinanceConfig::data_dir);
+    
+    py::class_<config::ConfigManager>(m, "ConfigManager")
+        .def_static("load", &config::ConfigManager::load,
+                   "加载配置文件", py::arg("config_file"))
+        .def_static("get_binance_config", &config::ConfigManager::get_binance_config,
+                   "获取币安配置");
+
+    // ========== Result 模板特化 ==========
+    // Result<vector<OHLCV>>
+    py::class_<Result<std::vector<OHLCV>>>(m, "ResultOHLCVList")
+        .def(py::init<>())
+        .def_readwrite("success", &Result<std::vector<OHLCV>>::success)
+        .def_readwrite("error_code", &Result<std::vector<OHLCV>>::error_code)
+        .def_readwrite("error_message", &Result<std::vector<OHLCV>>::error_message)
+        .def_readwrite("data", &Result<std::vector<OHLCV>>::data);
+
+    // Result<Ticker>
+    py::class_<Result<Ticker>>(m, "ResultTicker")
+        .def(py::init<>())
+        .def_readwrite("success", &Result<Ticker>::success)
+        .def_readwrite("error_code", &Result<Ticker>::error_code)
+        .def_readwrite("error_message", &Result<Ticker>::error_message)
+        .def_readwrite("data", &Result<Ticker>::data);
+
+    // Result<OrderBook>
+    py::class_<Result<OrderBook>>(m, "ResultOrderBook")
+        .def(py::init<>())
+        .def_readwrite("success", &Result<OrderBook>::success)
+        .def_readwrite("error_code", &Result<OrderBook>::error_code)
+        .def_readwrite("error_message", &Result<OrderBook>::error_message)
+        .def_readwrite("data", &Result<OrderBook>::data);
+    
+    // ========== BinanceCollector ==========
+    py::class_<collectors::BinanceCollector>(m, "BinanceCollector")
+        .def(py::init<const config::BinanceConfig&>(),
+             "构造函数", py::arg("config"))
+        .def("get_klines", &collectors::BinanceCollector::get_klines,
+             "获取K线数据", py::arg("symbol"), py::arg("interval"), py::arg("limit") = 500)
+        .def("get_ticker", &collectors::BinanceCollector::get_ticker,
+             "获取24小时价格统计", py::arg("symbol"))
+        .def("get_orderbook", &collectors::BinanceCollector::get_orderbook,
+             "获取订单簿深度数据", py::arg("symbol"), py::arg("limit") = 100);
+    
+
+
 }
 
