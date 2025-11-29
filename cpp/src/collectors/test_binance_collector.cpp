@@ -1,24 +1,38 @@
 #include "collectors/binance_collector.h"
 #include <iostream>
 #include "storage/kline_storage.h"
+#include "config/config_manager.h"
+#include "common/types.h"
 
 using namespace quant_crypto::collectors;
-using namespace quant_crypto::common;
+using namespace quant_crypto;
 
 int main() {
     std::cout << "========================================" << std::endl;
     std::cout << "测试 BinanceCollector 类" << std::endl;
     std::cout << "========================================\n" << std::endl;
     
-    // 1. 配置 BinanceCollector
-    BinanceConfig config;
-    config.base_url = "https://api.binance.com";
-    config.proxy_host = "127.0.0.1";  // 你的代理地址
-    config.proxy_port = 7897;         // 你的代理端口
-    config.timeout_ms = 30000;         // 30秒超时
-    
-    // 2. 创建 BinanceCollector 实例
+    std::cout << "正在加载配置文件..." << std::endl;
+    // 从 build/ 目录运行，需要向上一级到项目根目录
+    if (!quant_crypto::config::ConfigManager::load("../config/binance.json")) {
+        std::cerr << "❌ 配置文件加载失败！程序退出。" << std::endl;
+        return 1;
+    }
+    // 2. 获取币安配置
+    auto config = quant_crypto::config::ConfigManager::get_binance_config();
+
+    // 3. 创建 BinanceCollector 实例
     BinanceCollector collector(config);
+
+    // // 1. 配置 BinanceCollector
+    // BinanceConfig config;
+    // config.base_url = "https://api.binance.com";
+    // config.proxy_host = "127.0.0.1";  // 你的代理地址
+    // config.proxy_port = 7897;         // 你的代理端口
+    // config.timeout_ms = 30000;         // 30秒超时
+    
+    // // 2. 创建 BinanceCollector 实例
+    // BinanceCollector collector(config);
     
     std::cout << "\n========================================" << std::endl;
     std::cout << "开始获取 BTC/USDT K线数据..." << std::endl;
@@ -31,28 +45,33 @@ int main() {
     if (result.success) {
         std::cout << "\n✅ 成功获取 " << result.data.size() << " 条K线数据！\n" << std::endl;
         
-        // 5. 打印每条K线数据
-        std::cout << "K线数据详情：" << std::endl;
+        // 5. 打印每条OHLCV数据
+        std::cout << "OHLCV数据详情：" << std::endl;
         std::cout << "----------------------------------------" << std::endl;
         
         int i = 1;
-        for (const auto& kline : result.data) {
+        for (const auto& ohlcv : result.data) {
             std::cout << "K线 " << i++ << ":" << std::endl;
-            std::cout << "  开盘时间: " << kline.open_time << std::endl;
-            std::cout << "  开盘价: " << kline.open << std::endl;
-            std::cout << "  最高价: " << kline.high << std::endl;
-            std::cout << "  最低价: " << kline.low << std::endl;
-            std::cout << "  收盘价: " << kline.close << std::endl;
-            std::cout << "  成交量: " << kline.volume << std::endl;
+            std::cout << "  时间戳: " << ohlcv.timestamp << std::endl;
+            std::cout << "  交易对: " << ohlcv.symbol << std::endl;
+            std::cout << "  交易所: " << ohlcv.exchange << std::endl;
+            std::cout << "  周期: " << timeframe_to_string(ohlcv.timeframe) << std::endl;
+            std::cout << "  开盘价: " << ohlcv.open << std::endl;
+            std::cout << "  最高价: " << ohlcv.high << std::endl;
+            std::cout << "  最低价: " << ohlcv.low << std::endl;
+            std::cout << "  收盘价: " << ohlcv.close << std::endl;
+            std::cout << "  成交量: " << ohlcv.volume << std::endl;
+            std::cout << "  成交额: " << ohlcv.quote_volume << std::endl;
+            std::cout << "  成交笔数: " << ohlcv.trades_count << std::endl;
+            std::cout << "  质量: " << static_cast<int>(ohlcv.quality) << std::endl;
             std::cout << std::endl;
         }
         
-        // 创建存储对象
-        // quant_crypto::storage::KlineStorage storage("data");
-        quant_crypto::storage::KlineStorage storage("/Users/songhao/Desktop/quant_crypto/data");
-        // quant_crypto::storage::KlineStorage storage("../data");  // 从build/bin/向上两级
-        // 保存K线数据到CSV
-        bool save_success = storage.save_klines("BTCUSDT", "1h", result.data);
+        // 创建存储对象（使用配置文件中的路径）
+        quant_crypto::storage::KlineStorage storage(config.data_dir);
+        
+        // 保存OHLCV数据到CSV
+        bool save_success = storage.save_ohlcv("BTCUSDT", "1h", result.data);
         
         if (save_success) {
             std::cout << "\n✅ 数据已成功保存到CSV文件！" << std::endl;
@@ -67,7 +86,7 @@ int main() {
         std::cout << "========================================" << std::endl;
         
     } else {
-        std::cerr << "\n❌ 获取K线数据失败！" << std::endl;
+        std::cerr << "\n❌ 获取OHLCV数据失败！" << std::endl;
         std::cerr << "错误信息: " << result.error_message << std::endl;
     }
 

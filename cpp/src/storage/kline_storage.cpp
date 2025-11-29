@@ -41,11 +41,11 @@ namespace storage {
         return filename;
     }
 
-    bool KlineStorage::save_klines(const std::string& symbol, const std::string& interval, const std::vector<common::Kline>& klines){
+    bool KlineStorage::save_ohlcv(const std::string& symbol, const std::string& interval, const std::vector<OHLCV>& ohlcv_list){
         //1. 生成文件名
         std::string filename = generate_filename(symbol, interval);
 
-        std::cout<< "[KlinesStorage]保存K线数据到："<<filename<<std::endl;
+        std::cout<< "[KlineStorage] 保存OHLCV数据到："<<filename<<std::endl;
         //2. 检查文件是否已经存在
         bool file_exists = false;
         {
@@ -60,24 +60,30 @@ namespace storage {
             return false;
         }
 
-        // 4. 如果是新文进啊，写入CSV表头
+        // 4. 如果是新文件，写入CSV表头
         if(!file_exists){
-            file << "timestamp,open,high,low,close,volume" << std::endl;
+            file << "timestamp,symbol,exchange,timeframe,open,high,low,close,volume,quote_volume,trades_count,quality" << std::endl;
             std::cout << "[KlineStorage] 新文件，已写入CSV表头" << std::endl;
         }
-        // 5. 遍历Kline数据，写入每一行
-        for (const auto& kline : klines) {
-            file << kline.open_time << ","
-                    << std::fixed << std::setprecision(8) << kline.open << ","
-                    << kline.high << ","
-                    << kline.low << ","
-                    << kline.close << ","
-                    << kline.volume << std::endl;
+        // 5. 遍历OHLCV数据，写入每一行
+        for (const auto& ohlcv : ohlcv_list) {
+            file << ohlcv.timestamp << ","
+                    << ohlcv.symbol << ","
+                    << ohlcv.exchange << ","
+                    << timeframe_to_string(ohlcv.timeframe) << ","
+                    << std::fixed << std::setprecision(8) << ohlcv.open << ","
+                    << ohlcv.high << ","
+                    << ohlcv.low << ","
+                    << ohlcv.close << ","
+                    << ohlcv.volume << ","
+                    << ohlcv.quote_volume << ","
+                    << ohlcv.trades_count << ","
+                    << static_cast<int>(ohlcv.quality) << std::endl;
         }
 
         // 6.关闭文件
         file.close();
-        std::cout << "[KlineStorage] 保存完成，" << klines.size() << "条K线数据" << std::endl;
+        std::cout << "[KlineStorage] 保存完成，" << ohlcv_list.size() << " 条OHLCV数据" << std::endl;
         // 7.返回成功
         return true;
     }

@@ -2,7 +2,7 @@
 
 #include <string>
 #include <vector>
-#include "common/market_data.h"
+#include "common/types.h"
 
 namespace quant_crypto {
 namespace storage {
@@ -20,15 +20,15 @@ public:
     
     /**
      * @brief 保存K线数据到CSV文件
-     * @param symbol 交易所（如 "BTCUSDT"）
+     * @param symbol 交易对（如 "BTCUSDT"）
      * @param interval 时间周期（如 "1h"）
-     * @param klines K线数据
+     * @param ohlcv_list OHLCV数据列表
      * @return 是否成功
      */
-    bool save_klines(
+    bool save_ohlcv(
         const std::string& symbol,
         const std::string& interval,
-        const std::vector<common::Kline>& klines
+        const std::vector<OHLCV>& ohlcv_list
     );
     
 private:

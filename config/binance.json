@@ -1,0 +1,19 @@
+{
+    "base_url": "https://api.binance.com",
+    "proxy": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 7897
+    },
+    "timeout_ms": 30000,
+    "data_dir": "/Users/songhao/Desktop/quant_crypto/data",
+    "rate_limit": {
+      "requests_per_minute": 1200,
+      "delay_between_requests_ms": 100
+    },
+    "retry": {
+      "enabled": true,
+      "max_attempts": 3,
+      "delay_ms": 1000
+    }
+  }

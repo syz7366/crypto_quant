@@ -1,5 +1,4 @@
 #include "collectors/binance_collector.h"
-#include "common/market_data.h"
 #include "common/types.h"
 #include <iostream>
 #include <json.hpp>
@@ -9,8 +8,8 @@ using json = nlohmann::json;
 namespace quant_crypto{
 namespace collectors{
     BinanceCollector::BinanceCollector(const BinanceConfig& config)
-        : config_(config),
-        base_url_(config.base_url)
+        : 
+        base_url_(config.base_url),config_(config)
         {
             // http_client_ = HttpClient();  这里是不需要的
             // 这里如果代理为空，本身就没有配置，那么这里设置会不会导致什么差错出现
@@ -25,7 +24,7 @@ namespace collectors{
     BinanceCollector::~BinanceCollector(){
         std::cout << "[BinanceCollector] 销毁" << std::endl;
     }
-    Result<std::vector<common::Kline>> BinanceCollector::get_klines(
+    Result<std::vector<OHLCV>> BinanceCollector::get_klines(
         const std::string& symbol, 
         const std::string& interval, 
         int limit)
@@ -47,7 +46,7 @@ namespace collectors{
             auto result = http_client_.get(url, params);
             if(!result.success){
                 std::cerr << "[BinanceCollector] 请求失败: " << result.error_message << std::endl;
-                return Result<std::vector<common::Kline>>::Err(result.error_code, "获取K线数据失败"+result.error_message);
+                return Result<std::vector<OHLCV>>::Err(result.error_code, "获取K线数据失败"+result.error_message);
             }
             auto response = result.data;
             std::cout << "[BinanceCollector] HTTP请求成功，状态码: " 
@@ -55,31 +54,41 @@ namespace collectors{
             std::cout << "[BinanceCollector] 响应体大小: " 
             << response.body.size() << " bytes" << std::endl;
 
-            // 4. 解析JSON响应
-            std::vector<common::Kline> klines;
+            // 4. 解析JSON响应并构造OHLCV对象
+            std::vector<OHLCV> klines;
             try{
                 auto json = nlohmann::json::parse(response.body);
+                
+                // 转换interval字符串到Timeframe枚举
+                Timeframe tf = string_to_timeframe(interval);
+                
                 for(const auto& kline : json){
-                    common::Kline k;
-                    k.open_time = kline[0];
-                    k.open = std::stod(kline[1].get<std::string>());
-                    k.high = std::stod(kline[2].get<std::string>());
-                    k.low = std::stod(kline[3].get<std::string>());
-                    k.close = std::stod(kline[4].get<std::string>());
-                    k.volume = std::stod(kline[5].get<std::string>());
+                    OHLCV ohlcv;
+                    ohlcv.timestamp = kline[0];
+                    ohlcv.symbol = symbol;
+                    ohlcv.exchange = "binance";
+                    ohlcv.timeframe = tf;
+                    ohlcv.open = std::stod(kline[1].get<std::string>());
+                    ohlcv.high = std::stod(kline[2].get<std::string>());
+                    ohlcv.low = std::stod(kline[3].get<std::string>());
+                    ohlcv.close = std::stod(kline[4].get<std::string>());
+                    ohlcv.volume = std::stod(kline[5].get<std::string>());
+                    ohlcv.quote_volume = std::stod(kline[7].get<std::string>());
+                    ohlcv.trades_count = kline[8];
+                    ohlcv.quality = DataQuality::GOOD;
 
                     // 将结果添加到vector中
-                    klines.push_back(k);
+                    klines.push_back(ohlcv);
                 }
                 std::cout << "[BinanceCollector] 成功解析 " << klines.size() << " 条K线数据" << std::endl;
-                return Result<std::vector<common::Kline>>::Ok(klines);
+                return Result<std::vector<OHLCV>>::Ok(klines);
             }catch(const std::exception& e){
                 std::cerr << "[BinanceCollector] JSON解析失败: " << e.what() << std::endl;
-                return Result<std::vector<common::Kline>>::Err(ErrorCode::PARSE_ERROR, "解析K线数据失败"+std::string(e.what()));
+                return Result<std::vector<OHLCV>>::Err(ErrorCode::PARSE_ERROR, "解析K线数据失败"+std::string(e.what()));
             }
     }
 
-    Result<common::Ticker> BinanceCollector::get_ticker(const std::string& symbol){
+    Result<Ticker> BinanceCollector::get_ticker(const std::string& symbol){
 
         // 1. 构建完成的URL
         std::string url = base_url_ + "/api/v3/ticker/24hr";
@@ -98,28 +107,33 @@ namespace collectors{
         // 5. 检查HTTP请求是否成功
         if(!result.success){
             std::cerr << "[BinanceCollector] 请求失败: " << result.error_message << std::endl;
-            return Result<common::Ticker>::Err(result.error_code, "获取24小时价格统计失败"+result.error_message);
+            return Result<Ticker>::Err(result.error_code, "获取24小时价格统计失败"+result.error_message);
         }
         auto response = result.data;
 
-        // 6. 解析JSON响应
+        // 6. 解析JSON响应并构造Ticker对象
         try{
-            common::Ticker ticker;
+            Ticker ticker;
             auto json = nlohmann::json::parse(response.body);    
+            ticker.timestamp = json["closeTime"];
             ticker.symbol = json["symbol"].get<std::string>();
-            ticker.last_price = std::stod(json["lastPrice"].get<std::string>());
-            ticker.high_price = std::stod(json["highPrice"].get<std::string>());
-            ticker.low_price = std::stod(json["lowPrice"].get<std::string>());
-            ticker.volume = std::stod(json["volume"].get<std::string>());
-            ticker.price_change_percent = std::stod(json["priceChangePercent"].get<std::string>());
-            return Result<common::Ticker>::Ok(ticker);
+            ticker.exchange = "binance";
+            ticker.last = std::stod(json["lastPrice"].get<std::string>());
+            ticker.bid = std::stod(json["bidPrice"].get<std::string>());
+            ticker.ask = std::stod(json["askPrice"].get<std::string>());
+            ticker.high_24h = std::stod(json["highPrice"].get<std::string>());
+            ticker.low_24h = std::stod(json["lowPrice"].get<std::string>());
+            ticker.volume_24h = std::stod(json["volume"].get<std::string>());
+            ticker.quote_volume_24h = std::stod(json["quoteVolume"].get<std::string>());
+            ticker.change_24h = std::stod(json["priceChangePercent"].get<std::string>());
+            return Result<Ticker>::Ok(ticker);
         }catch(const std::exception& e){
             std::cerr << "[BinanceCollector] JSON解析失败: " << e.what() << std::endl;
-            return Result<common::Ticker>::Err(ErrorCode::PARSE_ERROR, "解析24小时价格统计失败"+std::string(e.what()));
+            return Result<Ticker>::Err(ErrorCode::PARSE_ERROR, "解析24小时价格统计失败"+std::string(e.what()));
         };
     }
 
-    Result<common::OrderBook> BinanceCollector::get_orderbook(const std::string& symbol, int limit) {
+    Result<OrderBook> BinanceCollector::get_orderbook(const std::string& symbol, int limit) {
         // 1. 构建URL
         std::string url = base_url_ + "/api/v3/depth";
         
@@ -137,7 +151,7 @@ namespace collectors{
         if (!http_result.success) {
             std::cerr << "[BinanceCollector] HTTP请求失败: " 
                       << http_result.error_message << std::endl;
-            return Result<common::OrderBook>::Err(
+            return Result<OrderBook>::Err(
                 http_result.error_code,
                 "获取OrderBook数据失败: " + http_result.error_message
             );
@@ -147,26 +161,29 @@ namespace collectors{
         std::cout << "[BinanceCollector] HTTP请求成功，状态码: " 
                   << response.status_code << std::endl;
         
-        // 4. 解析JSON（⚠️ 注意：这里结构比较复杂）
+        // 4. 解析JSON并构造OrderBook对象
         try {
             auto json_data = nlohmann::json::parse(response.body);
             
-            common::OrderBook orderbook;
+            OrderBook orderbook;
+            orderbook.timestamp = json_data.value("T", 0);  // 或使用当前时间
             orderbook.symbol = symbol;
+            orderbook.exchange = "binance";
+            orderbook.sequence = json_data.value("lastUpdateId", 0);
             
-            // ⚠️ 解析bids数组（买单）- 每个元素是 [price, quantity]
+            // 解析bids数组（买单）- 每个元素是 [price, quantity]
             for (const auto& bid : json_data["bids"]) {
-                common::PriceLevel level;
+                OrderBookLevel level;
                 level.price = std::stod(bid[0].get<std::string>());
-                level.quantity = std::stod(bid[1].get<std::string>());
+                level.volume = std::stod(bid[1].get<std::string>());
                 orderbook.bids.push_back(level);
             }
             
-            // ⚠️ 解析asks数组（卖单）- 结构相同
+            // 解析asks数组（卖单）
             for (const auto& ask : json_data["asks"]) {
-                common::PriceLevel level;
+                OrderBookLevel level;
                 level.price = std::stod(ask[0].get<std::string>());
-                level.quantity = std::stod(ask[1].get<std::string>());
+                level.volume = std::stod(ask[1].get<std::string>());
                 orderbook.asks.push_back(level);
             }
             
@@ -174,11 +191,11 @@ namespace collectors{
                       << orderbook.bids.size() << " bids, " 
                       << orderbook.asks.size() << " asks" << std::endl;
             
-            return Result<common::OrderBook>::Ok(orderbook);
+            return Result<OrderBook>::Ok(orderbook);
             
         } catch (const std::exception& e) {
             std::cerr << "[BinanceCollector] JSON解析失败: " << e.what() << std::endl;
-            return Result<common::OrderBook>::Err(
+            return Result<OrderBook>::Err(
                 ErrorCode::PARSE_ERROR,
                 "解析OrderBook数据失败: " + std::string(e.what())
             );
