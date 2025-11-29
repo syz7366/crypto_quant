@@ -85,3 +85,15 @@ set_target_properties(test_binance_minimal PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
+# 测试3： BinanceCollector测试
+add_executable(test_binance_collector 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/collectors/test_binance_collector.cpp
+)
+target_link_libraries(test_binance_collector 
+    PRIVATE 
+    quant_crypto_core_static
+)
+set_target_properties(test_binance_collector PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
