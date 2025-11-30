@@ -129,3 +129,27 @@ set_target_properties(test_data_cleaner PROPERTIES
 # set_target_properties(test_websocket PROPERTIES
 #     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 # )
+
+# 测试6：技术指标测试
+add_executable(test_indicators
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/indicators/test_indicators.cpp
+)
+target_link_libraries(test_indicators
+    PRIVATE
+    quant_crypto_core_static
+)
+set_target_properties(test_indicators PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# 测试7：策略回测测试
+add_executable(test_strategy
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/strategy/test_strategy.cpp
+)
+target_link_libraries(test_strategy
+    PRIVATE
+    quant_crypto_core_static
+)
+set_target_properties(test_strategy PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
