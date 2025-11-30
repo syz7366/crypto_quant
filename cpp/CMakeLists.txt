@@ -32,6 +32,11 @@ file(GLOB_RECURSE CORE_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp
 )
 
+# 手动添加backtest源文件（确保被包含）
+list(APPEND CORE_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/backtest/backtest_engine.cpp
+)
+
 # 创建核心静态库
 add_library(quant_crypto_core_static STATIC ${CORE_SOURCES})
 
@@ -151,5 +156,17 @@ target_link_libraries(test_strategy
     quant_crypto_core_static
 )
 set_target_properties(test_strategy PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# 测试8：回测引擎测试
+add_executable(test_backtest
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/backtest/test_backtest.cpp
+)
+target_link_libraries(test_backtest
+    PRIVATE
+    quant_crypto_core_static
+)
+set_target_properties(test_backtest PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
