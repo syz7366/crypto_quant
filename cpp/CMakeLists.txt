@@ -23,7 +23,7 @@ file(GLOB_RECURSE CORE_SOURCES
 )
 # 排除测试文件（它们有自己的 main 函数）
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*test_.*\\.cpp$")
-# 暂时排除websocket文件（Boost兼容性问题）
+# 暂时排除websocket文件（正在从websocketpp迁移到Boost.Beast）
 list(FILTER CORE_SOURCES EXCLUDE REGEX ".*websocket.*\\.cpp$")
 
 # 收集头文件

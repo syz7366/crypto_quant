@@ -1,124 +1,46 @@
 #pragma once
-
-// 兼容新版Boost的宏定义  
-#define BOOST_ASIO_HAS_STD_CHRONO
-#define BOOST_ASIO_DISABLE_STD_CHRONO
-#define BOOST_ASIO_USE_TS_EXECUTOR_AS_DEFAULT
-
-#include <websocketpp/config/asio_client.hpp>
-#include <websocketpp/client.hpp>
+#include "websocket/websocket_client_base.h"
 #include <json.hpp>
-#include <string>
-#include <functional>
-#include <thread>
-#include <atomic>
-#include "common/types.h"
 
 namespace quant_crypto{
-namespace websocket{
-
-using WebsocketClient = websocketpp::client<websocketpp::config::asio_client>;
-using WebsocketMessagePtr = websocketpp::config::asio_client::message_type::ptr;
-using WebsocketContext = websocketpp::lib::shared_ptr<websocketpp::lib::asio::ssl::context>;
-
+namespace ws{ // 使用ws命名空间避免与标准库冲突
 
 /**
- * @brief K线WebSocket数据回调函数
- * @param ohlcv K线数据
- */
-using KlineCallback = std::function<void(const OHLCV&)>;
-/**
- * @class BinanceWebSocketClient
- * @brief 币安WebSocket客户端
- * 
- * 功能：
- * - 订阅实时K线数据
- * - 自动解析JSON消息
- * - 回调通知
- */
-class BinanceWebSocketClient{
+* @class BinanceWebSocketClient
+* @brief 币安WebSocket客户端实现
+* 
+* 特点：
+* - 继承通用WebSocket逻辑
+* - 实现币安特定的消息格式解析
+*/
+class BinanceWebSocketClient: public WebSocketClientBase{
+
 public:
+    // 构造函数     
+    explicit BinanceWebSocketClient(net::io_context& ioc, ssl::context& ctx);
 
-    /**
-     * @brief 构造函数
-     */
-    BinanceWebSocketClient();
+    // 订阅K线数据（币安实现）
+    void subscribe_kline(const std::string& symbol, const std::string& interval, KlineCallback callback) override;
+    // 订阅Ticker数据（币安实现）
+    void subscribe_ticker(const std::string& symbol, TickCallback callback) override;
 
-    /**
-     * @brief 析构函数
-     */
-    ~BinanceWebSocketClient();
+protected:
+    // 解析接收到的消息（币安实现）
+    void parse_message(const std::string& message) override;
 
-    /**
-     * @brief 订阅K线数据流
-     * @param symbol 交易对（如 "btcusdt"，注意小写）
-     * @param interval 时间周期（如 "1m", "1h"）
-     * @param callback 数据回调函数
-     * @return 是否订阅成功
-     */
-     bool subscribe_kline(const std::string& symbol, 
-        const std::string& interval,
-        KlineCallback callback);
-
-    /**
-     * @brief 停止WebSocket连接
-     */
-     void stop();
-
-    /**
-     * @brief 检查是否已连接
-     */
-     bool is_connected() const { return connected_.load(); }
+    // 构建订阅消息（币安实现）
+    std::string build_subscribe_message(
+        const std::string& channel, 
+        const std::string& symbol
+    ) override;
 
 private:
-    /**
-     * @brief 连接到WebSocket
-     */
-     bool connect(const std::string& uri);
-
-    /**
-     * @brief 消息处理函数
-     */
-    void on_message(websocketpp::connection_hdl hdl, WebsocketMessagePtr msg);
-    
-    /**
-     * @brief 连接打开回调
-     */
-    void on_open(websocketpp::connection_hdl hdl);
-
-    /**
-     * @brief 连接关闭回调
-     */
-    void on_close(websocketpp::connection_hdl hdl);
-
-    /**
-     * @brief 连接失败回调
-     */
-    void on_fail(websocketpp::connection_hdl hdl);
-
-    /**
-     * @brief SSL初始化
-     */
-    WebsocketContext on_tls_init(websocketpp::connection_hdl hdl);
-    
-     /**
-      * @brief 运行IO循环（在独立线程中）
-      */
-    void run();
-
-private:
-    WebsocketClient client_;                // WebSocket客户端
-    websocketpp::connection_hdl hdl_;       // 连接句柄
-    std::thread io_thread_;                 // IO线程
-    std::atomic<bool> connected_;           // 连接状态
-    std::atomic<bool> should_stop_;         // 停止标志
-
-    KlineCallback kline_callback_;          // K线数据回调
-    std::string subscribed_symbol_;         // 订阅的交易对
-    std::string subscribed_interval_;       // 订阅的周期
+    // 解析具体的K线消息
+    void parse_kline_message(const nlohmann::json& j);
+    // 解析具体的Ticker消息
+    void parse_ticker_message(const nlohmann::json& j);
 
 };
-
 
 }
 }
