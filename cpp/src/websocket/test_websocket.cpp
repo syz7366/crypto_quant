@@ -1,90 +1,110 @@
-#include "websocket/binance_websocket_client.h"
+#include "websocket/websocket_factory.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include <atomic>
+#include <csignal>
 
 using namespace quant_crypto;
-using namespace quant_crypto::websocket;
 
-// 全局计数器
-std::atomic<int> message_count(0);
+// 全局变量用于信号处理
+std::atomic<bool> g_running{true};
 
-// K线数据回调函数
-void on_kline_received(const OHLCV& ohlcv) {
-    message_count++;
-    
-    // 打印接收到的K线数据
-    std::cout << "\n=== 收到K线数据 #" << message_count << " ===" << std::endl;
-    std::cout << "交易对: " << ohlcv.symbol << std::endl;
-    std::cout << "交易所: " << ohlcv.exchange << std::endl;
-    std::cout << "时间戳: " << ohlcv.timestamp << std::endl;
-    std::cout << "周期: " << timeframe_to_string(ohlcv.timeframe) << std::endl;
-    std::cout << "开盘价: " << ohlcv.open << std::endl;
-    std::cout << "最高价: " << ohlcv.high << std::endl;
-    std::cout << "最低价: " << ohlcv.low << std::endl;
-    std::cout << "收盘价: " << ohlcv.close << std::endl;
-    std::cout << "成交量: " << ohlcv.volume << std::endl;
-    std::cout << "成交额: " << ohlcv.quote_volume << std::endl;
-    std::cout << "成交笔数: " << ohlcv.trades_count << std::endl;
-    std::cout << "============================\n" << std::endl;
+void signal_handler(int signal) {
+    std::cout << "\n收到中断信号，正在关闭..." << std::endl;
+    g_running = false;
 }
 
 int main() {
     std::cout << "========================================" << std::endl;
-    std::cout << "WebSocket 实时数据测试" << std::endl;
+    std::cout << "WebSocket 测试程序 (Boost.Beast)" << std::endl;
     std::cout << "========================================\n" << std::endl;
     
-    // 1. 创建WebSocket客户端
-    std::cout << "[步骤1] 创建WebSocket客户端..." << std::endl;
-    BinanceWebSocketClient client;
-    std::cout << "✅ 客户端创建成功\n" << std::endl;
+    // 设置信号处理
+    std::signal(SIGINT, signal_handler);
     
-    // 2. 订阅BTC 1分钟K线数据
-    std::cout << "[步骤2] 订阅 BTCUSDT 1分钟K线数据..." << std::endl;
-    bool success = client.subscribe_kline("btcusdt", "1m", on_kline_received);
-    
-    if (!success) {
-        std::cerr << "❌ 订阅失败！" << std::endl;
+    try {
+        // 1. 创建IO上下文     这里IO上下文的意义是什么
+        net::io_context ioc;
+        
+        // 2. 创建SSL上下文
+        ssl::context ctx{ssl::context::tlsv12_client};
+        
+        // 加载系统根证书
+        ctx.set_default_verify_paths();
+        ctx.set_verify_mode(ssl::verify_peer);
+        
+        // 3. 使用工厂创建客户端
+        auto client = ws::WebSocketFactory::create("binance", ioc, ctx);
+        
+        if (!client) {
+            std::cerr << "❌ 创建客户端失败" << std::endl;
+            return 1;
+        }
+        
+        // 4. 记录收到的K线数量
+        int kline_count = 0;
+        
+        // 5. 订阅K线数据
+        client->subscribe_kline("BTCUSDT", "1s", [&kline_count](const OHLCV& ohlcv) {
+            kline_count++;
+            
+            // 每收到10条打印一次统计
+            if (kline_count % 10 == 0) {
+                std::cout << "\n📊 已收到 " << kline_count << " 条K线数据" << std::endl;
+            }
+        });
+        
+        // 6. 在后台线程运行IO循环 —————— 这里循环IO的意义是什么
+        std::thread io_thread([&ioc]() {
+            std::cout << "[Main] IO线程启动" << std::endl;
+            ioc.run();
+            std::cout << "[Main] IO线程结束" << std::endl;
+        });
+        
+        // 7. 等待连接建立
+        std::cout << "等待连接建立..." << std::endl;
+        int wait_count = 0;
+        while (!client->is_connected() && wait_count < 100 && g_running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // 如果去掉这些代码会发生什么呢
+            wait_count++;
+        }
+        
+        if (!client->is_connected()) {
+            std::cerr << "❌ 连接超时" << std::endl;
+        } else {
+            std::cout << "✅ 连接已建立！" << std::endl;
+        }
+        
+        // 8. 主线程等待用户中断
+        std::cout << "\n💡 按 Ctrl+C 停止...\n" << std::endl;
+        
+        while (g_running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        // 9. 断开连接
+        std::cout << "\n正在断开连接..." << std::endl;
+        client->disconnect();
+        
+        // 10. 停止IO上下文
+        ioc.stop();
+        
+        // 11. 等待IO线程结束
+        if (io_thread.joinable()) {
+            io_thread.join();
+        }
+        
+        // 12. 打印统计
+        std::cout << "\n========================================" << std::endl;
+        std::cout << "测试结束" << std::endl;
+        std::cout << "总共收到 " << kline_count << " 条K线数据" << std::endl;
+        std::cout << "========================================" << std::endl;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "❌ 异常: " << e.what() << std::endl;
         return 1;
     }
-    
-    std::cout << "✅ 订阅成功！等待数据...\n" << std::endl;
-    
-    // 3. 等待连接建立
-    std::cout << "[步骤3] 等待连接建立..." << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-    
-    if (client.is_connected()) {
-        std::cout << "✅ WebSocket已连接！\n" << std::endl;
-    } else {
-        std::cerr << "❌ 连接失败！" << std::endl;
-        return 1;
-    }
-    
-    // 4. 接收数据（运行30秒）
-    std::cout << "========================================" << std::endl;
-    std::cout << "🚀 开始接收实时数据..." << std::endl;
-    std::cout << "（程序将运行30秒，按Ctrl+C可提前退出）" << std::endl;
-    std::cout << "========================================\n" << std::endl;
-    
-    // 每5秒显示一次统计
-    for (int i = 0; i < 6; i++) {
-        std::this_thread::sleep_for(std::chrono::seconds(5));
-        std::cout << "[统计] 已接收 " << message_count << " 条消息" << std::endl;
-    }
-    
-    // 5. 停止WebSocket
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "[步骤4] 停止WebSocket连接..." << std::endl;
-    client.stop();
-    
-    // 6. 总结
-    std::cout << "\n========================================" << std::endl;
-    std::cout << "✅ 测试完成！" << std::endl;
-    std::cout << "========================================" << std::endl;
-    std::cout << "总计接收消息: " << message_count << " 条" << std::endl;
-    std::cout << "========================================" << std::endl;
     
     return 0;
 }

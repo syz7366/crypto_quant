@@ -7,6 +7,7 @@
 #include <string>
 #include <functional>
 #include <memory>
+#include<atomic>
 #include "common/types.h"
 
 namespace beast = boost::beast;
@@ -55,7 +56,7 @@ public:
     /**
      * @brief 连接到WebSocket服务器
      */
-    void connect(const std::string& host, const std::string& port);
+    void connect(const std::string& host, const std::string& port, const std::string& path);
 
     /**
     * @brief 断开连接
