@@ -27,6 +27,15 @@ BacktestEngine::BacktestEngine(const BacktestConfig& config)
         // 2. 初始化策略
         strategy_->on_init(config_.initial_capital);
 
+        // ============ 新增：初始化权益曲线 =========
+        // 记录初始权益
+        result_.equity_curve.clear();
+        result_.timestamps.clear();
+        result_.equity_curve.push_back(config_.initial_capital);
+        if(!data_.empty()){
+            result_.timestamps.push_back(data_[0].timestamp);
+        }
+
         // 3. 回测循环
         for(const auto& bar:data_){
             //3.1 喂数据给策略
@@ -39,6 +48,16 @@ BacktestEngine::BacktestEngine(const BacktestConfig& config)
             if(signal != strategy::Signal::HOLD && signal != strategy::Signal::NONE){
                 process_signal(signal,bar);
             }
+            // ============ 记录每个Bar结束时的权益 =========
+            // 更新持仓价格（用于计算未实现盈亏）         那么这里为什么之前不更新持仓价格呢，要到现在做性能评测了才做更新
+            if (strategy_->get_position().quantity > 0){
+                strategy_->update_position_price(bar.close);
+            }
+
+            // 记录当前总权益
+            double current_equity = strategy_->get_total_equity();
+            result_.equity_curve.push_back(current_equity);
+            result_.timestamps.push_back(bar.timestamp);
         }
         // 4. 汇总结果
         result_.final_capital = strategy_->get_capital();

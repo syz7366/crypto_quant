@@ -31,6 +31,10 @@ struct BacktestResult{
     int losing_trades;   // 亏损交易次数
     std::vector<strategy::Trade> trades;  //交易记录
 
+    // ========  权益曲线数据
+    std::vector<double> equity_curve;     // 权益曲线（每个Bar的总权益）
+    std::vector<Timestamp> timestamps;     // 时间戳(每个Bar的时间戳)
+
     BacktestResult()
         : initial_capital(0), final_capital(0),final_equity(0),
         total_return(0), total_trades(0), winning_trades(0), losing_trades(0){}
