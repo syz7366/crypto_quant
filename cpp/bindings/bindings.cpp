@@ -9,6 +9,11 @@
 #include "collectors/binance_collector.h"
 #include "storage/kline_storage.h"
 #include "config/config_manager.h"
+#include "strategy/strategy_base.h"
+#include "strategy/ma_cross_strategy.h"
+#include "backtest/backtest_engine.h"
+#include "analysis/performance_metrics.h"
+#include "analysis/performance_analyzer.h"
 // #include "common/result.h"
 
 namespace py = pybind11;
@@ -231,6 +236,115 @@ PYBIND11_MODULE(quant_crypto_core, m) {
         .def("get_orderbook", &collectors::BinanceCollector::get_orderbook,
              "获取订单簿深度数据", py::arg("symbol"), py::arg("limit") = 100);
     
+    // ========== 策略模块 ==========
+    py::enum_<strategy::Signal>(m, "Signal")
+        .value("BUY", strategy::Signal::BUY)
+        .value("SELL", strategy::Signal::SELL)
+        .value("HOLD", strategy::Signal::HOLD)
+        .value("NONE", strategy::Signal::NONE)
+        .export_values();
+
+    py::class_<strategy::Position>(m, "Position")
+        .def(py::init<>())
+        .def_readwrite("symbol", &strategy::Position::symbol)
+        .def_readwrite("quantity", &strategy::Position::quantity)
+        .def_readwrite("avg_price", &strategy::Position::avg_price)
+        .def_readwrite("current_price", &strategy::Position::current_price)
+        .def_readwrite("unrealized_pnl", &strategy::Position::unrealized_pnl)
+        .def("has_position", &strategy::Position::has_position);
+
+    py::class_<strategy::Trade>(m, "Trade")
+        .def(py::init<>())
+        .def_readwrite("timestamp", &strategy::Trade::timestamp)
+        .def_readwrite("symbol", &strategy::Trade::symbol)
+        .def_readwrite("signal", &strategy::Trade::signal)
+        .def_readwrite("price", &strategy::Trade::price)
+        .def_readwrite("quantity", &strategy::Trade::quantity)
+        .def_readwrite("pnl", &strategy::Trade::pnl);
+
+    // 先绑定基类 StrategyBase
+    py::class_<strategy::StrategyBase>(m, "StrategyBase")
+        .def("on_init", &strategy::StrategyBase::on_init)
+        .def("get_capital", &strategy::StrategyBase::get_capital)
+        .def("get_total_equity", &strategy::StrategyBase::get_total_equity)
+        .def("get_total_return", &strategy::StrategyBase::get_total_return)
+        .def("get_position", &strategy::StrategyBase::get_position);
+
+    py::class_<strategy::MACrossConfig>(m, "MACrossConfig")
+        .def(py::init<>())
+        .def_readwrite("fast_period", &strategy::MACrossConfig::fast_period)
+        .def_readwrite("slow_period", &strategy::MACrossConfig::slow_period)
+        .def_readwrite("position_size", &strategy::MACrossConfig::position_size);
+
+    // 绑定派生类，指定继承关系
+    py::class_<strategy::MACrossStrategy, strategy::StrategyBase>(m, "MACrossStrategy")
+        .def(py::init<const strategy::MACrossConfig&>(),
+             "构造函数", py::arg("config"))
+        .def("on_bar", &strategy::MACrossStrategy::on_bar)
+        .def("generate_signal", &strategy::MACrossStrategy::generate_signal)
+        .def("get_name", &strategy::MACrossStrategy::get_name)
+        .def("get_fast_ma", &strategy::MACrossStrategy::get_fast_ma)
+        .def("get_slow_ma", &strategy::MACrossStrategy::get_slow_ma);
+
+    // ========== 回测模块 ==========
+    py::class_<backtest::BacktestConfig>(m, "BacktestConfig")
+        .def(py::init<>())
+        .def_readwrite("initial_capital", &backtest::BacktestConfig::initial_capital)
+        .def_readwrite("commission_rate", &backtest::BacktestConfig::commission_rate)
+        .def_readwrite("slippage_rate", &backtest::BacktestConfig::slippage_rate);
+
+    py::class_<backtest::BacktestResult>(m, "BacktestResult")
+        .def(py::init<>())
+        .def_readwrite("initial_capital", &backtest::BacktestResult::initial_capital)
+        .def_readwrite("final_capital", &backtest::BacktestResult::final_capital)
+        .def_readwrite("final_equity", &backtest::BacktestResult::final_equity)
+        .def_readwrite("total_return", &backtest::BacktestResult::total_return)
+        .def_readwrite("total_trades", &backtest::BacktestResult::total_trades)
+        .def_readwrite("winning_trades", &backtest::BacktestResult::winning_trades)
+        .def_readwrite("losing_trades", &backtest::BacktestResult::losing_trades)
+        .def_readwrite("trades", &backtest::BacktestResult::trades)
+        .def_readwrite("equity_curve", &backtest::BacktestResult::equity_curve)
+        .def_readwrite("timestamps", &backtest::BacktestResult::timestamps);
+
+    py::class_<backtest::BacktestEngine>(m, "BacktestEngine")
+        .def(py::init<const backtest::BacktestConfig&>(),
+             "构造函数", py::arg("config"))
+        .def("set_strategy", &backtest::BacktestEngine::set_strategy,
+             "设置策略", py::arg("strategy"))
+        .def("set_data", &backtest::BacktestEngine::set_data,
+             "设置数据", py::arg("data"))
+        .def("run", &backtest::BacktestEngine::run,
+             "运行回测")
+        .def("get_result", &backtest::BacktestEngine::get_result,
+             "获取回测结果");
+
+    // ========== 性能分析模块 ==========
+    py::class_<analysis::PerformanceMetrics>(m, "PerformanceMetrics")
+        .def(py::init<>())
+        .def_readwrite("annualized_return", &analysis::PerformanceMetrics::annualized_return)
+        .def_readwrite("cumulative_return", &analysis::PerformanceMetrics::cumulative_return)
+        .def_readwrite("equity_curve", &analysis::PerformanceMetrics::equity_curve)
+        .def_readwrite("max_drawdown", &analysis::PerformanceMetrics::max_drawdown)
+        .def_readwrite("sharpe_ratio", &analysis::PerformanceMetrics::sharpe_ratio)
+        .def_readwrite("sortino_ratio", &analysis::PerformanceMetrics::sortino_ratio)
+        .def_readwrite("calmar_ratio", &analysis::PerformanceMetrics::calmar_ratio)
+        .def_readwrite("volatility", &analysis::PerformanceMetrics::volatility)
+        .def_readwrite("downside_deviation", &analysis::PerformanceMetrics::downside_deviation)
+        .def_readwrite("profit_loss_ratio", &analysis::PerformanceMetrics::profit_loss_ratio)
+        .def_readwrite("max_consecutive_wins", &analysis::PerformanceMetrics::max_consecutive_wins)
+        .def_readwrite("max_consecutive_losses", &analysis::PerformanceMetrics::max_consecutive_losses)
+        .def_readwrite("avg_holding_period", &analysis::PerformanceMetrics::avg_holding_period)
+        .def_readwrite("trade_frequency_per_year", &analysis::PerformanceMetrics::trade_frequency_per_year)
+        .def_readwrite("drawdown_curve", &analysis::PerformanceMetrics::drawdown_curve);
+
+    py::class_<analysis::PerformanceAnalyzer>(m, "PerformanceAnalyzer")
+        .def(py::init<>())
+        .def("analyze", &analysis::PerformanceAnalyzer::analyze,
+             "分析回测结果",
+             py::arg("equity_curve"),
+             py::arg("timestamps"),
+             py::arg("trades"),
+             py::arg("initial_captial"));
 
 
 }

@@ -11,10 +11,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from python.config.settings import get_settings
-from python.api.routes import klines, orderbook, ticker, health
+from python.api.routes import klines, orderbook, ticker, health, backtest
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -54,6 +55,12 @@ app.include_router(health.router, prefix="/api/v1", tags=["健康检查"])
 app.include_router(klines.router, prefix="/api/v1", tags=["K线数据"])
 app.include_router(orderbook.router, prefix="/api/v1", tags=["订单簿"])
 app.include_router(ticker.router, prefix="/api/v1", tags=["行情"])
+app.include_router(backtest.router, prefix="/api/v1", tags=["回测"])
+
+# 挂载静态文件目录（用于可视化页面）
+static_path = Path(__file__).parent / "static"
+static_path.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
 
 
 @app.on_event("startup")

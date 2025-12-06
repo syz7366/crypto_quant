@@ -26,7 +26,7 @@ public:
      * @return 性能指标
      */
     PerformanceMetrics analyze(
-        const std::vector<OHLCV>& equity_curve,
+        const std::vector<double>& equity_curve,
         const std::vector<Timestamp>& timestamps,
         const std::vector<strategy::Trade>& trades,
         double initial_captial

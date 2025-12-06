@@ -163,3 +163,15 @@ target_link_libraries(test_backtest
 set_target_properties(test_backtest PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
+
+# 测试9：性能分析器测试
+add_executable(test_performance_analyzer
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/analysis/test_performance_analyzer.cpp
+)
+target_link_libraries(test_performance_analyzer
+    PRIVATE
+    quant_crypto_core_static
+)
+set_target_properties(test_performance_analyzer PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
